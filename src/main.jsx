@@ -1,9 +1,12 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { HashRouter } from 'react-router-dom'
 import PersonalityDiagnosisApp from './App'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <PersonalityDiagnosisApp />
+    <HashRouter>
+      <PersonalityDiagnosisApp />
+    </HashRouter>
   </React.StrictMode>,
 )

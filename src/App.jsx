@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 
 // ============================================================
 // 性格診断フォーム作成システム（完全版）
@@ -261,8 +262,9 @@ const ALL_QUESTIONS = [...QUESTIONS_STANDARD, ...QUESTIONS_KIDS, ...QUESTIONS_HR
 const INITIAL_FORMS = [
   {
     id: "form_default",
-    name: "性格診断フォーム（標準版）",
-    description: "あなたの行動パターンから、4つの性格タイプを診断します。社内のコミュニケーション改善にお役立てください。",
+    name: "採用分析マッチングフロー",
+    slug: "matching",
+    description: "あなたの行動パターンから、4つの性格タイプを診断します。MBTI分類に基づいたマッチング分析です。",
     questionIds: QUESTIONS_STANDARD.map((q) => q.id),
     typeIds: TYPES_STANDARD.map((t) => t.id),
     showResultToRespondent: true,
@@ -270,8 +272,9 @@ const INITIAL_FORMS = [
   },
   {
     id: "form_kids",
-    name: "キッズブランド顧客ペルソナ診断",
-    description: "お子さまをお持ちの保護者の方向け。ライフスタイルとニーズを分析します。",
+    name: "キッズブランド集客と顧客ペルソナ分析",
+    slug: "kids",
+    description: "お子さまをお持ちの保護者の方向け。婚礼クラスター派生型のライフスタイルとニーズを分析します。",
     questionIds: QUESTIONS_KIDS.map((q) => q.id),
     typeIds: TYPES_KIDS.map((t) => t.id),
     showResultToRespondent: true,
@@ -279,7 +282,8 @@ const INITIAL_FORMS = [
   },
   {
     id: "form_hr",
-    name: "人事採用適性診断",
+    name: "人事採用テスト",
+    slug: "hr",
     description: "採用候補者の強みと職場適性を分析します。面接前の事前診断としてご活用ください。",
     questionIds: QUESTIONS_HR.map((q) => q.id),
     typeIds: TYPES_HR.map((t) => t.id),
@@ -461,6 +465,9 @@ const GLOBAL_CSS = `
 // メインアプリケーション
 // ============================================================
 export default function PersonalityDiagnosisApp() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // --- グローバルデータ ---
   const [types, setTypes] = useState(ALL_TYPES);
   const [questions, setQuestions] = useState(ALL_QUESTIONS);
@@ -543,7 +550,7 @@ export default function PersonalityDiagnosisApp() {
   }, [questions, types]);
 
   // --- 診断開始 ---
-  const startDiagnosis = (formId) => {
+  const startDiagnosis = (formId, skipNav) => {
     setActiveFormId(formId);
     setCurrentQ(0);
     setAnswers({});
@@ -556,7 +563,30 @@ export default function PersonalityDiagnosisApp() {
       email: "",
     });
     setMode("user");
+    if (!skipNav) {
+      const f = forms.find((ff) => ff.id === formId);
+      if (f && f.slug) navigate("/" + f.slug);
+    }
   };
+
+  // --- ルートに基づくフォーム自動選択 ---
+  useEffect(() => {
+    const path = location.pathname.replace(/^\//, "").replace(/\/$/, "");
+    if (path === "admin") {
+      if (isAdminLoggedIn) {
+        setMode("admin");
+      } else {
+        setMode("adminLogin");
+      }
+      return;
+    }
+    const matchedForm = forms.find((f) => f.slug === path);
+    if (matchedForm && activeFormId !== matchedForm.id) {
+      startDiagnosis(matchedForm.id, true);
+    } else if (!matchedForm && path !== "" && path !== "admin") {
+      setMode("landing");
+    }
+  }, [location.pathname]);
 
   // --- 回答者情報入力後 → 質問開始 ---
   const startQuestions = () => {
@@ -662,6 +692,7 @@ export default function PersonalityDiagnosisApp() {
       setMode("admin");
       setAdminLoginError(false);
       setAdminLoginInput("");
+      navigate("/admin");
     } else {
       setAdminLoginError(true);
     }
@@ -671,6 +702,7 @@ export default function PersonalityDiagnosisApp() {
     setIsAdminLoggedIn(false);
     setMode("landing");
     setAdminTab("responses");
+    navigate("/");
   };
 
   // 質問CRUD
@@ -822,7 +854,7 @@ export default function PersonalityDiagnosisApp() {
             })}
           </div>
 
-          <button onClick={() => { setMode("adminLogin"); setAdminLoginInput(""); setAdminLoginError(false); }}
+          <button onClick={() => { navigate("/admin"); setAdminLoginInput(""); setAdminLoginError(false); setMode("adminLogin"); }}
             style={{ background: "transparent", border: `1.5px solid ${S.border}`, borderRadius: S.radiusSm, padding: "12px 28px", fontSize: 14, color: S.textMuted, cursor: "pointer", fontFamily: S.font, fontWeight: 500, transition: "all 0.2s", display: "inline-flex", alignItems: "center", gap: 8 }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = S.accent; e.currentTarget.style.color = S.accent; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = S.textMuted; }}>
@@ -867,7 +899,7 @@ export default function PersonalityDiagnosisApp() {
             style={{ width: "100%", padding: "14px", borderRadius: S.radiusSm, border: "none", background: S.accent, cursor: "pointer", fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: S.font, marginBottom: 12 }}>
             ログイン
           </button>
-          <button onClick={() => setMode("landing")}
+          <button onClick={() => { setMode("landing"); navigate("/"); }}
             style={{ width: "100%", padding: "12px", borderRadius: S.radiusSm, border: `1.5px solid ${S.border}`, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 500, color: S.textMuted, fontFamily: S.font }}>
             戻る
           </button>
@@ -916,7 +948,7 @@ export default function PersonalityDiagnosisApp() {
                 style={{ width: "100%", padding: "14px", borderRadius: S.radiusSm, border: "none", background: respondentInfo.name.trim() ? S.accent : "#D5CFC8", cursor: respondentInfo.name.trim() ? "pointer" : "not-allowed", fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: S.font, transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 次へ → 診断開始 <Icon name="chevronRight" size={16} />
               </button>
-              <button onClick={() => setMode("landing")}
+              <button onClick={() => { setMode("landing"); navigate("/"); }}
                 style={{ width: "100%", padding: "10px", borderRadius: S.radiusSm, border: "none", background: "transparent", cursor: "pointer", fontSize: 13, color: S.textMuted, fontFamily: S.font, marginTop: 8 }}>
                 キャンセル
               </button>
@@ -983,7 +1015,7 @@ export default function PersonalityDiagnosisApp() {
                 style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px", borderRadius: S.radiusSm, border: `1.5px solid ${S.border}`, background: S.card, cursor: "pointer", fontSize: 14, fontWeight: 600, color: S.text, fontFamily: S.font, transition: "all 0.2s" }}>
                 <Icon name="restart" size={16} /> もう一度
               </button>
-              <button className="btn-hover" onClick={() => setMode("landing")}
+              <button className="btn-hover" onClick={() => { setMode("landing"); navigate("/"); }}
                 style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px", borderRadius: S.radiusSm, border: "none", background: S.accent, cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: S.font, transition: "all 0.2s" }}>
                 <Icon name="home" size={16} /> トップへ
               </button>
@@ -1043,6 +1075,10 @@ export default function PersonalityDiagnosisApp() {
   // ============================================================
   // 管理者画面
   // ============================================================
+  // --- 管理者画面: フォーム選択 ---
+  const [adminSelectedFormId, setAdminSelectedFormId] = useState(forms[0]?.id || "");
+  const adminSelectedForm = forms.find((f) => f.id === adminSelectedFormId);
+
   const adminTabs = [
     { key: "responses", label: "回答一覧", icon: "📊" },
     { key: "questions", label: "質問管理", icon: "📝" },
@@ -1071,6 +1107,15 @@ export default function PersonalityDiagnosisApp() {
               <Icon name="logout" size={14} /> ログアウト
             </button>
           </div>
+          {/* フォーム選択バー */}
+          <div style={{ display: "flex", gap: 8, padding: "8px 0", overflowX: "auto", borderBottom: `1px solid ${S.border}` }}>
+            {forms.map((f) => (
+              <button key={f.id} onClick={() => setAdminSelectedFormId(f.id)}
+                style={{ padding: "6px 16px", borderRadius: 20, border: `1.5px solid ${adminSelectedFormId === f.id ? S.accent : S.border}`, background: adminSelectedFormId === f.id ? S.accentLight : "transparent", cursor: "pointer", fontSize: 12, fontWeight: 600, color: adminSelectedFormId === f.id ? S.accent : S.textMuted, fontFamily: S.font, transition: "all 0.2s", whiteSpace: "nowrap" }}>
+                {f.name}
+              </button>
+            ))}
+          </div>
           <div style={{ display: "flex", gap: 0, overflowX: "auto" }}>
             {adminTabs.map((tab) => (
               <button key={tab.key} className="admin-tab" onClick={() => setAdminTab(tab.key)}
@@ -1087,15 +1132,15 @@ export default function PersonalityDiagnosisApp() {
         {/* ====== 回答一覧タブ ====== */}
         {adminTab === "responses" && (
           <div>
-            <h2 style={{ fontSize: 20, fontWeight: 900, color: S.text, marginBottom: 20 }}>回答一覧</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 900, color: S.text, marginBottom: 8 }}>回答一覧</h2>
+            <p style={{ fontSize: 13, color: S.textMuted, marginBottom: 20 }}>選択中: <strong style={{ color: S.accent }}>{adminSelectedForm?.name || "全フォーム"}</strong></p>
 
             {/* フィルター行 */}
             <div style={{ background: S.card, borderRadius: S.radius, padding: "16px 20px", boxShadow: S.shadow, border: `1px solid ${S.border}`, marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div style={{ minWidth: 180 }}>
+              <div style={{ minWidth: 180, display: "none" }}>
                 <Label>フォーム</Label>
-                <select value={responseFilter.formId} onChange={(e) => setResponseFilter((p) => ({ ...p, formId: e.target.value }))}
+                <select value={adminSelectedFormId} onChange={(e) => setAdminSelectedFormId(e.target.value)}
                   style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: `1.5px solid ${S.border}`, fontSize: 13, fontFamily: S.font, color: S.text, background: "#FAFAF8" }}>
-                  <option value="all">全フォーム</option>
                   {forms.map((f) => (<option key={f.id} value={f.id}>{f.name}</option>))}
                 </select>
               </div>
@@ -1142,22 +1187,21 @@ export default function PersonalityDiagnosisApp() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: `2px solid ${S.border}`, background: "#FAFAF8" }}>
-                      {["回答日時", "フォーム名", "所属", "氏名", "結果タイプ", ""].map((h, i) => (
+                      {["回答日時", "所属", "氏名", "結果タイプ", ""].map((h, i) => (
                         <th key={i} style={{ padding: "12px 14px", textAlign: "left", fontWeight: 700, color: S.textMuted, fontSize: 12, whiteSpace: "nowrap" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredResponses.length === 0 ? (
-                      <tr><td colSpan={6} style={{ padding: "40px 14px", textAlign: "center", color: S.textMuted }}>回答データがありません</td></tr>
-                    ) : filteredResponses.map((r) => {
+                    {filteredResponses.filter((r) => r.formId === adminSelectedFormId).length === 0 ? (
+                      <tr><td colSpan={5} style={{ padding: "40px 14px", textAlign: "center", color: S.textMuted }}>回答データがありません</td></tr>
+                    ) : filteredResponses.filter((r) => r.formId === adminSelectedFormId).map((r) => {
                       const t = types.find((tp) => tp.id === r.resultTypeId);
                       return (
                         <tr key={r.id} style={{ borderBottom: `1px solid ${S.border}` }}
                           onMouseEnter={(e) => e.currentTarget.style.background = "#FAFAF8"}
                           onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                           <td style={{ padding: "12px 14px", whiteSpace: "nowrap", color: S.textMuted }}>{new Date(r.submittedAt).toLocaleString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
-                          <td style={{ padding: "12px 14px", whiteSpace: "nowrap", fontWeight: 600, color: S.text }}>{r.formTitle}</td>
                           <td style={{ padding: "12px 14px", whiteSpace: "nowrap", color: S.text }}>{r.respondentInfo.department || "—"}</td>
                           <td style={{ padding: "12px 14px", whiteSpace: "nowrap", fontWeight: 600, color: S.text }}>{r.respondentInfo.name}</td>
                           <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
@@ -1185,72 +1229,45 @@ export default function PersonalityDiagnosisApp() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 20, fontWeight: 900, color: S.text }}>質問管理</h2>
-                <p style={{ fontSize: 13, color: S.textMuted, marginTop: 4 }}>{questions.length}件の質問</p>
+                <p style={{ fontSize: 13, color: S.textMuted, marginTop: 4 }}>選択中: <strong style={{ color: S.accent }}>{adminSelectedForm?.name}</strong> — {adminSelectedForm ? adminSelectedForm.questionIds.length : 0}件の質問</p>
               </div>
               <button onClick={addQuestion}
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: S.radiusSm, border: "none", background: S.accent, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: S.font }}>
                 <Icon name="plus" size={16} /> 質問を追加
               </button>
             </div>
-            {/* フォーム別グループ表示 */}
-            {forms.map((form) => {
-              const formQs = form.questionIds.map((qid) => questions.find((q) => q.id === qid)).filter(Boolean);
-              if (formQs.length === 0) return null;
+            {/* 選択中フォームの質問表示 */}
+            {adminSelectedForm && (() => {
+              const formQs = adminSelectedForm.questionIds.map((qid) => questions.find((q) => q.id === qid)).filter(Boolean);
               return (
-                <div key={form.id} style={{ marginBottom: 24 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: S.text, marginBottom: 10, padding: "8px 12px", background: S.accentLight, borderRadius: 8, display: "inline-block" }}>📋 {form.name}</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {formQs.map((q, qi) => (
-                      <div key={q.id} className="card-hover" style={{ background: S.card, borderRadius: S.radiusSm, padding: "14px 16px", boxShadow: S.shadow, border: `1px solid ${S.border}` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: S.accent, background: S.accentLight, padding: "2px 8px", borderRadius: 6 }}>Q{qi + 1}</span>
-                              <span style={{ fontSize: 14, fontWeight: 700, color: S.text }}>{q.text}</span>
-                            </div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                              {q.choices.map((c) => {
-                                const t = types.find((tp) => tp.id === c.typeId);
-                                return (
-                                  <span key={c.id} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, background: (t?.color || "#888") + "14", color: t?.color || "#888", fontWeight: 500 }}>
-                                    {c.label} → {t?.name || "?"} (+{c.score})
-                                  </span>
-                                );
-                              })}
-                            </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {formQs.map((q, qi) => (
+                    <div key={q.id} className="card-hover" style={{ background: S.card, borderRadius: S.radiusSm, padding: "14px 16px", boxShadow: S.shadow, border: `1px solid ${S.border}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: S.accent, background: S.accentLight, padding: "2px 8px", borderRadius: 6 }}>Q{qi + 1}</span>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: S.text }}>{q.text}</span>
                           </div>
-                          <div style={{ display: "flex", gap: 4, marginLeft: 8, flexShrink: 0 }}>
-                            <button onClick={() => setEditingQuestion({ ...q })} style={{ background: S.bg, border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: S.textMuted }}><Icon name="edit" size={14} /></button>
-                            <button onClick={() => deleteQuestion(q.id)} style={{ background: S.dangerLight, border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: S.danger }}><Icon name="trash" size={14} /></button>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {q.choices.map((c) => {
+                              const t = types.find((tp) => tp.id === c.typeId);
+                              return (
+                                <span key={c.id} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, background: (t?.color || "#888") + "14", color: t?.color || "#888", fontWeight: 500 }}>
+                                  {c.label} → {t?.name || "?"} (+{c.score})
+                                </span>
+                              );
+                            })}
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-            {/* どのフォームにも属さない質問 */}
-            {(() => {
-              const assignedIds = new Set(forms.flatMap((f) => f.questionIds));
-              const unassigned = questions.filter((q) => !assignedIds.has(q.id));
-              if (unassigned.length === 0) return null;
-              return (
-                <div style={{ marginBottom: 24 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: S.textMuted, marginBottom: 10, padding: "8px 12px", background: S.bg, borderRadius: 8, display: "inline-block" }}>未割当の質問</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {unassigned.map((q) => (
-                      <div key={q.id} className="card-hover" style={{ background: S.card, borderRadius: S.radiusSm, padding: "14px 16px", boxShadow: S.shadow, border: `1px solid ${S.border}` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: S.text }}>{q.text}</span>
-                          <div style={{ display: "flex", gap: 4 }}>
-                            <button onClick={() => setEditingQuestion({ ...q })} style={{ background: S.bg, border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: S.textMuted }}><Icon name="edit" size={14} /></button>
-                            <button onClick={() => deleteQuestion(q.id)} style={{ background: S.dangerLight, border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: S.danger }}><Icon name="trash" size={14} /></button>
-                          </div>
+                        <div style={{ display: "flex", gap: 4, marginLeft: 8, flexShrink: 0 }}>
+                          <button onClick={() => setEditingQuestion({ ...q })} style={{ background: S.bg, border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: S.textMuted }}><Icon name="edit" size={14} /></button>
+                          <button onClick={() => deleteQuestion(q.id)} style={{ background: S.dangerLight, border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: S.danger }}><Icon name="trash" size={14} /></button>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
+                  {formQs.length === 0 && <div style={{ padding: "40px", textAlign: "center", color: S.textMuted }}>このフォームにはまだ質問がありません</div>}
                 </div>
               );
             })()}
@@ -1263,14 +1280,14 @@ export default function PersonalityDiagnosisApp() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 20, fontWeight: 900, color: S.text }}>タイプ管理</h2>
-                <p style={{ fontSize: 13, color: S.textMuted, marginTop: 4 }}>{types.length}件のタイプ</p>
+                <p style={{ fontSize: 13, color: S.textMuted, marginTop: 4 }}>選択中: <strong style={{ color: S.accent }}>{adminSelectedForm?.name}</strong> — {adminSelectedForm ? adminSelectedForm.typeIds.length : 0}件のタイプ</p>
               </div>
               <button onClick={addType} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: S.radiusSm, border: "none", background: S.accent, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: S.font }}>
                 <Icon name="plus" size={16} /> タイプを追加
               </button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
-              {types.map((t, i) => (
+              {types.filter((t) => adminSelectedForm?.typeIds.includes(t.id)).map((t, i) => (
                 <div key={t.id} className="card-hover" style={{ background: S.card, borderRadius: S.radius, padding: "18px", boxShadow: S.shadow, border: `1px solid ${S.border}`, borderTop: `3px solid ${t.color}`, animation: `fadeUp 0.4s ease-out ${i * 0.03}s both` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1284,7 +1301,7 @@ export default function PersonalityDiagnosisApp() {
                   </div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: S.textMuted, marginBottom: 3 }}>ユーザー向け</div>
                   <div style={{ fontSize: 12, color: S.text, lineHeight: 1.6, whiteSpace: "pre-line", maxHeight: 60, overflow: "hidden", marginBottom: 8 }}>{t.userDescription}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: S.textMuted, marginBottom: 3 }}>人事向け</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: S.textMuted, marginBottom: 3 }}>管理者向け</div>
                   <div style={{ fontSize: 12, color: S.text, lineHeight: 1.6, whiteSpace: "pre-line", maxHeight: 60, overflow: "hidden" }}>{t.adminDescription}</div>
                 </div>
               ))}
@@ -1333,10 +1350,23 @@ export default function PersonalityDiagnosisApp() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${S.border}` }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <Icon name={f.showResultToRespondent ? "eye" : "eyeOff"} size={16} />
-                        <span style={{ fontSize: 13, fontWeight: 600, color: S.text }}>回答者への結果表示</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: S.text }}>○○タイプの結果表示</span>
                       </div>
-                      <Toggle on={f.showResultToRespondent} onToggle={() => toggleShowResult(f.id)} label={f.showResultToRespondent ? "表示" : "非表示"} />
+                      <Toggle on={f.showResultToRespondent} onToggle={() => toggleShowResult(f.id)} label={f.showResultToRespondent ? "ON" : "OFF"} />
                     </div>
+
+                    {/* 回答者用URL */}
+                    {f.slug && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 0", borderTop: `1px solid ${S.border}` }}>
+                        <Icon name="link" size={14} />
+                        <span style={{ fontSize: 12, color: S.textMuted, fontWeight: 500 }}>回答URL:</span>
+                        <code style={{ fontSize: 11, color: S.accent, background: S.accentLight, padding: "3px 8px", borderRadius: 4, wordBreak: "break-all" }}>
+                          {window.location.origin + window.location.pathname + "#/" + f.slug}
+                        </code>
+                        <button onClick={() => { navigator.clipboard.writeText(window.location.origin + window.location.pathname + "#/" + f.slug); showToast("URLをコピーしました"); }}
+                          style={{ background: S.bg, border: "none", borderRadius: 6, padding: 5, cursor: "pointer", color: S.textMuted, flexShrink: 0 }}><Icon name="copy" size={13} /></button>
+                      </div>
+                    )}
 
                     <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
                       <button onClick={() => startDiagnosis(f.id)}
