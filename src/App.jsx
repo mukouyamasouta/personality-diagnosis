@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 
 // ============================================================
@@ -774,12 +774,9 @@ export default function PersonalityDiagnosisApp() {
   };
 
   // --- 共通UIコンポーネント ---
-  const composingRef = useRef(false);
   const Input = ({ value, onChange, placeholder, type = "text", style: extraStyle, disabled }) => (
     <input type={type} value={value}
-      onChange={(e) => { if (!composingRef.current) onChange(e.target.value); }}
-      onCompositionStart={() => { composingRef.current = true; }}
-      onCompositionEnd={(e) => { composingRef.current = false; onChange(e.target.value); }}
+      onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder} disabled={disabled}
       style={{ width: "100%", padding: "10px 14px", borderRadius: S.radiusSm, border: `1.5px solid ${S.border}`, fontSize: 14, fontFamily: S.font, color: S.text, background: disabled ? "#F0EDE9" : "#FAFAF8", transition: "all 0.2s", ...extraStyle }} />
   );
