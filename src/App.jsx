@@ -512,7 +512,13 @@ export default function PersonalityDiagnosisApp() {
   const [types, setTypes] = useState(ALL_TYPES);
   const [questions, setQuestions] = useState(ALL_QUESTIONS);
   const [forms, setForms] = useState(INITIAL_FORMS);
-  const [responses, setResponses] = useState(INITIAL_RESPONSES);
+  const [responses, setResponses] = useState(() => {
+    try {
+      const saved = localStorage.getItem("pd_responses");
+      if (saved) return JSON.parse(saved);
+    } catch (e) { /* ignore */ }
+    return INITIAL_RESPONSES;
+  });
 
   // --- 管理者認証 ---
   const [adminPassword, setAdminPassword] = useState("admin2024");
@@ -557,6 +563,13 @@ export default function PersonalityDiagnosisApp() {
   // --- 設定画面用 ---
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [passwordChangeMsg, setPasswordChangeMsg] = useState("");
+
+  // --- responsesをlocalStorageに永続化 ---
+  useEffect(() => {
+    try {
+      localStorage.setItem("pd_responses", JSON.stringify(responses));
+    } catch (e) { /* ignore */ }
+  }, [responses]);
 
   // --- トースト ---
   const showToast = useCallback((msg) => {
@@ -811,6 +824,14 @@ export default function PersonalityDiagnosisApp() {
   // 結果表示トグル
   const toggleShowResult = (formId) => {
     setForms((prev) => prev.map((f) => f.id === formId ? { ...f, showResultToRespondent: !f.showResultToRespondent } : f));
+  };
+
+  // 回答削除
+  const deleteResponse = (id) => {
+    if (!window.confirm("この回答データを削除しますか？")) return;
+    setResponses((prev) => prev.filter((r) => r.id !== id));
+    setViewingResponse(null);
+    showToast("回答データを削除しました");
   };
 
   // ============================================================
@@ -1196,11 +1217,17 @@ export default function PersonalityDiagnosisApp() {
                           <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
                             <span style={{ padding: "4px 10px", borderRadius: 6, background: (t?.color || "#888") + "14", color: t?.color || "#888", fontWeight: 600, fontSize: 12 }}>{r.resultTypeIcon} {r.resultTypeLabel}</span>
                           </td>
-                          <td style={{ padding: "12px 14px" }}>
-                            <button onClick={() => setViewingResponse(r)}
-                              style={{ padding: "6px 14px", borderRadius: 6, border: `1px solid ${S.border}`, background: S.card, cursor: "pointer", fontSize: 12, fontWeight: 600, color: S.accent, fontFamily: S.font }}>
-                              詳細
-                            </button>
+                          <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={() => setViewingResponse(r)}
+                                style={{ padding: "6px 14px", borderRadius: 6, border: `1px solid ${S.border}`, background: S.card, cursor: "pointer", fontSize: 12, fontWeight: 600, color: S.accent, fontFamily: S.font }}>
+                                詳細
+                              </button>
+                              <button onClick={() => deleteResponse(r.id)}
+                                style={{ padding: "6px 10px", borderRadius: 6, border: `1px solid ${S.border}`, background: S.dangerLight, cursor: "pointer", color: S.danger, fontFamily: S.font }}>
+                                <Icon name="trash" size={13} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1526,6 +1553,13 @@ export default function PersonalityDiagnosisApp() {
             const labelEntries = Object.entries(r.answerLabels);
             return (
               <div>
+                {/* 削除ボタン */}
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                  <button onClick={() => deleteResponse(r.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: S.radiusSm, border: `1.5px solid ${S.danger}`, background: S.dangerLight, cursor: "pointer", fontSize: 12, fontWeight: 600, color: S.danger, fontFamily: S.font }}>
+                    <Icon name="trash" size={14} /> この回答を削除
+                  </button>
+                </div>
                 {/* 回答者情報 */}
                 <div style={{ background: S.bg, borderRadius: S.radiusSm, padding: "16px", marginBottom: 16 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: S.textMuted, marginBottom: 10 }}>回答者情報</div>
