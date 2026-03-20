@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { db } from "./firebase";
+import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "firebase/firestore";
 
 // ============================================================
 // 性格診断フォーム作成システム（完全版）
@@ -268,6 +270,7 @@ const INITIAL_FORMS = [
     questionIds: QUESTIONS_STANDARD.map((q) => q.id),
     typeIds: TYPES_STANDARD.map((t) => t.id),
     showResultToRespondent: true,
+    showScoreDetails: true,
     createdAt: Date.now() - 86400000 * 7,
   },
   {
@@ -278,6 +281,7 @@ const INITIAL_FORMS = [
     questionIds: QUESTIONS_KIDS.map((q) => q.id),
     typeIds: TYPES_KIDS.map((t) => t.id),
     showResultToRespondent: true,
+    showScoreDetails: true,
     createdAt: Date.now() - 86400000 * 3,
   },
   {
@@ -288,6 +292,7 @@ const INITIAL_FORMS = [
     questionIds: QUESTIONS_HR.map((q) => q.id),
     typeIds: TYPES_HR.map((t) => t.id),
     showResultToRespondent: false,
+    showScoreDetails: false,
     createdAt: Date.now() - 86400000 * 1,
   },
 ];
@@ -512,13 +517,8 @@ export default function PersonalityDiagnosisApp() {
   const [types, setTypes] = useState(ALL_TYPES);
   const [questions, setQuestions] = useState(ALL_QUESTIONS);
   const [forms, setForms] = useState(INITIAL_FORMS);
-  const [responses, setResponses] = useState(() => {
-    try {
-      const saved = localStorage.getItem("pd_responses");
-      if (saved) return JSON.parse(saved);
-    } catch (e) { /* ignore */ }
-    return INITIAL_RESPONSES;
-  });
+  const [responses, setResponses] = useState([]);
+  const [firestoreLoaded, setFirestoreLoaded] = useState(false);
 
   // --- 管理者認証 ---
   const [adminPassword, setAdminPassword] = useState("admin2024");
@@ -564,12 +564,24 @@ export default function PersonalityDiagnosisApp() {
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [passwordChangeMsg, setPasswordChangeMsg] = useState("");
 
-  // --- responsesをlocalStorageに永続化 ---
-  useEffect(() => {
+  // --- Firestoreから回答データを取得 ---
+  const fetchResponses = useCallback(async () => {
     try {
-      localStorage.setItem("pd_responses", JSON.stringify(responses));
-    } catch (e) { /* ignore */ }
-  }, [responses]);
+      const snap = await getDocs(collection(db, "responses"));
+      const data = snap.docs.map((d) => ({ ...d.data(), _docId: d.id }));
+      data.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+      setResponses(data);
+      setFirestoreLoaded(true);
+    } catch (e) {
+      console.error("Firestore読み込みエラー:", e);
+      setFirestoreLoaded(true);
+    }
+  }, []);
+
+  // 初回マウント時とadminログイン時にFirestoreから取得
+  useEffect(() => {
+    fetchResponses();
+  }, [fetchResponses]);
 
   // --- トースト ---
   const showToast = useCallback((msg) => {
@@ -686,6 +698,10 @@ export default function PersonalityDiagnosisApp() {
           resultTypeIcon: topType ? topType.icon : "",
           submittedAt: new Date().toISOString(),
         };
+        // Firestoreに保存
+        addDoc(collection(db, "responses"), newResponse)
+          .then(() => console.log("Firestoreに保存完了"))
+          .catch((e) => console.error("Firestore保存エラー:", e));
         setResponses((prev) => [...prev, newResponse]);
         setSessionStep("result");
       }
@@ -806,7 +822,7 @@ export default function PersonalityDiagnosisApp() {
 
   // フォームCRUD
   const addForm = () => {
-    setEditingForm({ id: "form_" + uid(), name: "", description: "", questionIds: [], typeIds: types.map((t) => t.id), showResultToRespondent: true, createdAt: Date.now(), isNew: true });
+    setEditingForm({ id: "form_" + uid(), name: "", description: "", questionIds: [], typeIds: types.map((t) => t.id), showResultToRespondent: true, showScoreDetails: true, createdAt: Date.now(), isNew: true });
   };
   const saveForm = () => {
     if (!editingForm || !editingForm.name.trim()) return;
@@ -826,9 +842,23 @@ export default function PersonalityDiagnosisApp() {
     setForms((prev) => prev.map((f) => f.id === formId ? { ...f, showResultToRespondent: !f.showResultToRespondent } : f));
   };
 
-  // 回答削除
-  const deleteResponse = (id) => {
+  // スコア内訳表示トグル
+  const toggleShowScoreDetails = (formId) => {
+    setForms((prev) => prev.map((f) => f.id === formId ? { ...f, showScoreDetails: !(f.showScoreDetails ?? true) } : f));
+  };
+
+  // 回答削除（Firestore連携）
+  const deleteResponse = async (id) => {
     if (!window.confirm("この回答データを削除しますか？")) return;
+    // Firestoreから削除
+    const target = responses.find((r) => r.id === id);
+    if (target && target._docId) {
+      try {
+        await deleteDoc(doc(db, "responses", target._docId));
+      } catch (e) {
+        console.error("Firestore削除エラー:", e);
+      }
+    }
     setResponses((prev) => prev.filter((r) => r.id !== id));
     setViewingResponse(null);
     showToast("回答データを削除しました");
@@ -1002,24 +1032,26 @@ export default function PersonalityDiagnosisApp() {
                   </div>
                   <div style={{ fontSize: 14.5, lineHeight: 2, color: S.text, whiteSpace: "pre-line" }}>{topType.userDescription}</div>
                 </div>
-                <div style={{ background: S.card, borderRadius: "20px", padding: "24px 28px", boxShadow: S.shadow, animation: "fadeUp 0.8s ease-out 0.4s both", marginBottom: 24, border: `1px solid ${S.border}` }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: S.textMuted, marginBottom: 16, letterSpacing: "0.05em" }}>スコア内訳</div>
-                  {types.filter((t) => activeForm.typeIds.includes(t.id)).map((t) => {
-                    const score = scores[t.id] || 0;
-                    const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
-                    return (
-                      <div key={t.id} style={{ marginBottom: 14 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: S.text }}>{t.icon} {t.name}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: t.color }}>{score}/{maxScore}</span>
+                {(activeForm?.showScoreDetails ?? true) && (
+                  <div style={{ background: S.card, borderRadius: "20px", padding: "24px 28px", boxShadow: S.shadow, animation: "fadeUp 0.8s ease-out 0.4s both", marginBottom: 24, border: `1px solid ${S.border}` }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: S.textMuted, marginBottom: 16, letterSpacing: "0.05em" }}>スコア内訳</div>
+                    {types.filter((t) => activeForm.typeIds.includes(t.id)).map((t) => {
+                      const score = scores[t.id] || 0;
+                      const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
+                      return (
+                        <div key={t.id} style={{ marginBottom: 14 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: S.text }}>{t.icon} {t.name}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: t.color }}>{score}/{maxScore}</span>
+                          </div>
+                          <div style={{ height: 8, borderRadius: 4, background: S.bg, overflow: "hidden" }}>
+                            <div style={{ height: "100%", borderRadius: 4, background: `linear-gradient(90deg, ${t.color}, ${t.color}cc)`, width: `${pct}%`, transition: "width 1s ease-out" }} />
+                          </div>
                         </div>
-                        <div style={{ height: 8, borderRadius: 4, background: S.bg, overflow: "hidden" }}>
-                          <div style={{ height: "100%", borderRadius: 4, background: `linear-gradient(90deg, ${t.color}, ${t.color}cc)`, width: `${pct}%`, transition: "width 1s ease-out" }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -1363,12 +1395,23 @@ export default function PersonalityDiagnosisApp() {
                     </div>
 
                     {/* 結果表示トグル */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${S.border}` }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <Icon name={f.showResultToRespondent ? "eye" : "eyeOff"} size={16} />
-                        <span style={{ fontSize: 13, fontWeight: 600, color: S.text }}>○○タイプの結果表示</span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "12px 0", borderTop: `1px solid ${S.border}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <Icon name={f.showResultToRespondent ? "eye" : "eyeOff"} size={16} />
+                          <span style={{ fontSize: 13, fontWeight: 600, color: S.text }}>○○タイプの結果表示</span>
+                        </div>
+                        <Toggle on={f.showResultToRespondent} onToggle={() => toggleShowResult(f.id)} label={f.showResultToRespondent ? "ON" : "OFF"} />
                       </div>
-                      <Toggle on={f.showResultToRespondent} onToggle={() => toggleShowResult(f.id)} label={f.showResultToRespondent ? "ON" : "OFF"} />
+                      
+                      {f.showResultToRespondent && (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingLeft: 24 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: S.textMuted }}>↳ スコア内訳（%）の表示</span>
+                          </div>
+                          <Toggle on={f.showScoreDetails ?? true} onToggle={() => toggleShowScoreDetails(f.id)} label={(f.showScoreDetails ?? true) ? "ON" : "OFF"} />
+                        </div>
+                      )}
                     </div>
 
                     {/* 回答者用URL */}
@@ -1412,7 +1455,12 @@ export default function PersonalityDiagnosisApp() {
                       <div style={{ fontSize: 14, fontWeight: 700, color: S.text }}>{f.name}</div>
                       <div style={{ fontSize: 12, color: S.textMuted }}>{f.questionIds.length}問・{f.typeIds.length}タイプ</div>
                     </div>
-                    <Toggle on={f.showResultToRespondent} onToggle={() => toggleShowResult(f.id)} label={f.showResultToRespondent ? "結果を表示" : "結果を非表示"} />
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+                      <Toggle on={f.showResultToRespondent} onToggle={() => toggleShowResult(f.id)} label={f.showResultToRespondent ? "全体結果を表示" : "全体結果を非表示"} />
+                      {f.showResultToRespondent && (
+                        <Toggle on={f.showScoreDetails ?? true} onToggle={() => toggleShowScoreDetails(f.id)} label={(f.showScoreDetails ?? true) ? "内訳を表示" : "内訳を非表示"} />
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1508,6 +1556,12 @@ export default function PersonalityDiagnosisApp() {
             <Label>結果表示設定</Label>
             <Toggle on={editingForm.showResultToRespondent} onToggle={() => setEditingForm((p) => ({ ...p, showResultToRespondent: !p.showResultToRespondent }))} label={editingForm.showResultToRespondent ? "回答者に結果を表示する" : "回答者に結果を表示しない"} />
           </div>
+          {editingForm.showResultToRespondent && (
+            <div style={{ marginBottom: 14, paddingLeft: 12, borderLeft: `2px solid ${S.border}` }}>
+              <Label>スコア内訳・詳細パーセンテージ表示</Label>
+              <Toggle on={editingForm.showScoreDetails ?? true} onToggle={() => setEditingForm((p) => ({ ...p, showScoreDetails: !(p.showScoreDetails ?? true) }))} label={(editingForm.showScoreDetails ?? true) ? "内訳を表示する" : "内訳を表示しない"} />
+            </div>
+          )}
           <div style={{ marginBottom: 14 }}>
             <Label>使用するタイプ</Label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
