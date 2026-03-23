@@ -566,7 +566,7 @@ export default function PersonalityDiagnosisApp() {
   const [formsLoaded, setFormsLoaded] = useState(false);
 
   // --- 管理者認証 ---
-  const [adminPassword, setAdminPassword] = useState("admin2024");
+  const [adminPassword, setAdminPassword] = useState("shikirama2026");
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminLoginInput, setAdminLoginInput] = useState("");
   const [adminLoginError, setAdminLoginError] = useState(false);
