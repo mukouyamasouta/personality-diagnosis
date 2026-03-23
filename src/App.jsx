@@ -666,13 +666,15 @@ export default function PersonalityDiagnosisApp() {
       }
       return;
     }
+    // Firestoreからフォームが読み込まれるまで待つ（早期にlandingへリダイレクトしない）
+    if (!formsLoaded) return;
     const matchedForm = forms.find((f) => f.slug === path || f.id === path);
     if (matchedForm && activeFormId !== matchedForm.id) {
       startDiagnosis(matchedForm.id, true);
     } else if (!matchedForm && path !== "" && path !== "admin") {
       setMode("landing");
     }
-  }, [location.pathname, isAdminLoggedIn]);
+  }, [location.pathname, isAdminLoggedIn, forms, formsLoaded]);
 
   // --- 回答者情報入力後 → 質問開始 ---
   const startQuestions = () => {
