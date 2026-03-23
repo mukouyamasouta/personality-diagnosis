@@ -1380,14 +1380,14 @@ export default function PersonalityDiagnosisApp() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: `2px solid ${S.border}`, background: "#FAFAF8" }}>
-                      {["回答日時", "所属", "氏名", "結果タイプ", ""].map((h, i) => (
+                      {["回答日時", "所属", "氏名", "結果タイプ", "タイプ数", ""].map((h, i) => (
                         <th key={i} style={{ padding: "12px 14px", textAlign: "left", fontWeight: 700, color: S.textMuted, fontSize: 12, whiteSpace: "nowrap" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filteredResponses.filter((r) => r.formId === adminSelectedFormId).length === 0 ? (
-                      <tr><td colSpan={5} style={{ padding: "40px 14px", textAlign: "center", color: S.textMuted }}>回答データがありません</td></tr>
+                      <tr><td colSpan={6} style={{ padding: "40px 14px", textAlign: "center", color: S.textMuted }}>回答データがありません</td></tr>
                     ) : filteredResponses.filter((r) => r.formId === adminSelectedFormId).map((r) => {
                       const t = types.find((tp) => tp.id === r.resultTypeId);
                       return (
@@ -1399,6 +1399,14 @@ export default function PersonalityDiagnosisApp() {
                           <td style={{ padding: "12px 14px", whiteSpace: "nowrap", fontWeight: 600, color: S.text }}>{r.respondentInfo.name}</td>
                           <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
                             <span style={{ padding: "4px 10px", borderRadius: 6, background: (t?.color || "#888") + "14", color: t?.color || "#888", fontWeight: 600, fontSize: 12 }}>{r.resultTypeIcon} {r.resultTypeLabel}</span>
+                          </td>
+                          <td style={{ padding: "12px 14px", whiteSpace: "nowrap", textAlign: "center" }}>
+                            {(() => {
+                              const sameTypeCount = filteredResponses.filter((fr) => fr.formId === adminSelectedFormId && fr.resultTypeId === r.resultTypeId).length;
+                              return (
+                                <span style={{ display: "inline-block", minWidth: 32, padding: "4px 10px", borderRadius: 20, background: (t?.color || "#888") + "18", color: t?.color || "#888", fontWeight: 900, fontSize: 13 }}>{sameTypeCount}</span>
+                              );
+                            })()}
                           </td>
                           <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
                             <div style={{ display: "flex", gap: 6 }}>
@@ -1783,6 +1791,45 @@ export default function PersonalityDiagnosisApp() {
                     <div style={{ fontSize: 18, fontWeight: 900, color: t?.color || S.text }}>{r.resultTypeLabel}</div>
                   </div>
                 </div>
+
+                {/* 個人スコア円グラフ */}
+                {(() => {
+                  const form = forms.find((f) => f.id === r.formId);
+                  if (!form || !r.answerLabels) return null;
+                  const scoreCounts = {};
+                  Object.values(r.answerLabels).forEach((info) => {
+                    if (info.typeLabel) scoreCounts[info.typeLabel] = (scoreCounts[info.typeLabel] || 0) + 1;
+                  });
+                  const pieData = Object.entries(scoreCounts).map(([tLabel, count]) => {
+                    const matchT = types.find((tp) => tp.name === tLabel);
+                    return { label: tLabel, icon: matchT?.icon || "", value: count, color: matchT?.color || "#888" };
+                  }).sort((a, b) => b.value - a.value);
+                  const total = pieData.reduce((s, d) => s + d.value, 0);
+                  if (!pieData.length) return null;
+                  return (
+                    <div style={{ background: S.bg, borderRadius: S.radiusSm, padding: "16px", marginBottom: 16 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: S.textMuted, marginBottom: 12 }}>スコア内訳（円グラフ）</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
+                        <PieChart data={pieData} size={150} />
+                        <div style={{ flex: 1, minWidth: 160, display: "flex", flexDirection: "column", gap: 8 }}>
+                          {pieData.map((d) => (
+                            <div key={d.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{ width: 10, height: 10, borderRadius: 2, background: d.color, flexShrink: 0 }} />
+                              <span style={{ fontSize: 12, fontWeight: 600, color: S.text, flex: 1 }}>{d.icon} {d.label}</span>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <div style={{ width: 50, height: 5, borderRadius: 3, background: "#E5DFD8", overflow: "hidden" }}>
+                                  <div style={{ height: "100%", borderRadius: 3, background: d.color, width: `${(d.value / total) * 100}%` }} />
+                                </div>
+                                <span style={{ fontSize: 12, fontWeight: 900, color: d.color, minWidth: 16 }}>{d.value}</span>
+                                <span style={{ fontSize: 11, color: S.textMuted }}>({Math.round((d.value / total) * 100)}%)</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* 回答内訳テーブル */}
                 <div style={{ fontSize: 13, fontWeight: 700, color: S.textMuted, marginBottom: 8 }}>回答内訳</div>
