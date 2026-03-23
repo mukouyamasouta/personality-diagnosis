@@ -646,7 +646,7 @@ export default function PersonalityDiagnosisApp() {
       }
       return;
     }
-    const matchedForm = forms.find((f) => f.slug === path);
+    const matchedForm = forms.find((f) => f.slug === path || f.id === path);
     if (matchedForm && activeFormId !== matchedForm.id) {
       startDiagnosis(matchedForm.id, true);
     } else if (!matchedForm && path !== "" && path !== "admin") {
@@ -822,7 +822,8 @@ export default function PersonalityDiagnosisApp() {
 
   // フォームCRUD
   const addForm = () => {
-    setEditingForm({ id: "form_" + uid(), name: "", description: "", questionIds: [], typeIds: types.map((t) => t.id), showResultToRespondent: true, showScoreDetails: true, createdAt: Date.now(), isNew: true });
+    const newId = "form_" + uid();
+    setEditingForm({ id: newId, slug: newId, name: "", description: "", questionIds: [], typeIds: types.map((t) => t.id), showResultToRespondent: true, showScoreDetails: true, createdAt: Date.now(), isNew: true });
   };
   const saveForm = () => {
     if (!editingForm || !editingForm.name.trim()) return;
@@ -1415,17 +1416,15 @@ export default function PersonalityDiagnosisApp() {
                     </div>
 
                     {/* 回答者用URL */}
-                    {f.slug && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 0", borderTop: `1px solid ${S.border}` }}>
-                        <Icon name="link" size={14} />
-                        <span style={{ fontSize: 12, color: S.textMuted, fontWeight: 500 }}>回答URL:</span>
-                        <code style={{ fontSize: 11, color: S.accent, background: S.accentLight, padding: "3px 8px", borderRadius: 4, wordBreak: "break-all" }}>
-                          {window.location.origin + window.location.pathname + "#/" + f.slug}
-                        </code>
-                        <button onClick={() => { navigator.clipboard.writeText(window.location.origin + window.location.pathname + "#/" + f.slug); showToast("URLをコピーしました"); }}
-                          style={{ background: S.bg, border: "none", borderRadius: 6, padding: 5, cursor: "pointer", color: S.textMuted, flexShrink: 0 }}><Icon name="copy" size={13} /></button>
-                      </div>
-                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 0", borderTop: `1px solid ${S.border}` }}>
+                      <Icon name="link" size={14} />
+                      <span style={{ fontSize: 12, color: S.textMuted, fontWeight: 500 }}>回答URL:</span>
+                      <code style={{ fontSize: 11, color: S.accent, background: S.accentLight, padding: "3px 8px", borderRadius: 4, wordBreak: "break-all" }}>
+                        {window.location.origin + window.location.pathname + "#/" + (f.slug || f.id)}
+                      </code>
+                      <button onClick={() => { navigator.clipboard.writeText(window.location.origin + window.location.pathname + "#/" + (f.slug || f.id)); showToast("URLをコピーしました"); }}
+                        style={{ background: S.bg, border: "none", borderRadius: 6, padding: 5, cursor: "pointer", color: S.textMuted, flexShrink: 0 }}><Icon name="copy" size={13} /></button>
+                    </div>
 
                     <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
                       <button onClick={() => startDiagnosis(f.id)}
@@ -1551,6 +1550,7 @@ export default function PersonalityDiagnosisApp() {
       {editingForm && (
         <Modal title={editingForm.isNew ? "フォームを追加" : "フォームを編集"} onClose={() => setEditingForm(null)} onSave={saveForm} width={640}>
           <div style={{ marginBottom: 14 }}><Label>フォーム名</Label><Input value={editingForm.name} onChange={(v) => setEditingForm((p) => ({ ...p, name: v }))} placeholder="例：性格診断（社内版）" /></div>
+          <div style={{ marginBottom: 14 }}><Label>カスタムURL (英数字で短く設定可)</Label><Input value={editingForm.slug || editingForm.id} onChange={(v) => setEditingForm((p) => ({ ...p, slug: v.replace(/[^a-zA-Z0-9_\-]/g, "") }))} placeholder="例：sale-team" /></div>
           <div style={{ marginBottom: 14 }}><Label>説明文</Label><TextArea value={editingForm.description} onChange={(v) => setEditingForm((p) => ({ ...p, description: v }))} placeholder="フォームの説明" rows={2} /></div>
           <div style={{ marginBottom: 14 }}>
             <Label>結果表示設定</Label>
