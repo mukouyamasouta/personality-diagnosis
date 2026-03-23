@@ -506,6 +506,50 @@ const Toggle = ({ on, onToggle, label }) => (
   </div>
 );
 
+// SVG円グラフコンポーネント
+const PieChart = ({ data, size = 180 }) => {
+  if (!data || data.length === 0) return null;
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (total === 0) return null;
+  const cx = size / 2, cy = size / 2, r = size / 2 - 8;
+  let startAngle = -Math.PI / 2;
+  const slices = data.map((d) => {
+    const angle = (d.value / total) * 2 * Math.PI;
+    const x1 = cx + r * Math.cos(startAngle);
+    const y1 = cy + r * Math.sin(startAngle);
+    const x2 = cx + r * Math.cos(startAngle + angle);
+    const y2 = cy + r * Math.sin(startAngle + angle);
+    const largeArc = angle > Math.PI ? 1 : 0;
+    const midAngle = startAngle + angle / 2;
+    const lx = cx + (r * 0.65) * Math.cos(midAngle);
+    const ly = cy + (r * 0.65) * Math.sin(midAngle);
+    const slice = { ...d, x1, y1, x2, y2, largeArc, lx, ly, angle, startAngle };
+    startAngle += angle;
+    return slice;
+  });
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.08))" }}>
+      {slices.map((s, i) => (
+        <g key={i}>
+          <path
+            d={`M${cx},${cy} L${s.x1},${s.y1} A${r},${r} 0 ${s.largeArc},1 ${s.x2},${s.y2} Z`}
+            fill={s.color} opacity={0.9} stroke="#fff" strokeWidth={2}
+          />
+          {s.angle > 0.3 && (
+            <text x={s.lx} y={s.ly} textAnchor="middle" dominantBaseline="middle"
+              style={{ fontSize: 11, fontWeight: 700, fill: "#fff", pointerEvents: "none" }}>
+              {Math.round((s.value / total) * 100)}%
+            </text>
+          )}
+        </g>
+      ))}
+      <circle cx={cx} cy={cy} r={r * 0.38} fill="white" />
+      <text x={cx} y={cy - 6} textAnchor="middle" style={{ fontSize: 11, fill: "#8A8580", fontWeight: 700 }}>総数</text>
+      <text x={cx} y={cy + 10} textAnchor="middle" style={{ fontSize: 16, fill: "#2D2A26", fontWeight: 900 }}>{total}</text>
+    </svg>
+  );
+};
+
 // ============================================================
 // メインアプリケーション
 // ============================================================
@@ -1256,6 +1300,62 @@ export default function PersonalityDiagnosisApp() {
                 </div>
               </div>
             </div>
+
+            {/* 分析セクション: 円グラフ + サマリー */}
+            {(() => {
+              const targetResponses = filteredResponses.filter((r) => r.formId === adminSelectedFormId);
+              const typeCounts = {};
+              targetResponses.forEach((r) => {
+                if (r.resultTypeLabel) typeCounts[r.resultTypeId] = (typeCounts[r.resultTypeId] || 0) + 1;
+              });
+              const pieData = Object.entries(typeCounts).map(([tid, count]) => {
+                const t = types.find((tp) => tp.id === tid);
+                return { label: t?.name || tid, icon: t?.icon || "", value: count, color: t?.color || "#888" };
+              }).sort((a, b) => b.value - a.value);
+              const topEntry = pieData[0];
+              return (
+                <div style={{ background: S.card, borderRadius: S.radius, padding: "20px 24px", boxShadow: S.shadow, border: `1px solid ${S.border}`, marginBottom: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 900, color: S.text }}>分析グラフ</div>
+                      <div style={{ fontSize: 12, color: S.textMuted, marginTop: 2 }}>絞り込み中: <strong style={{ color: S.accent }}>{adminSelectedForm?.name}</strong> ・ {targetResponses.length}件</div>
+                    </div>
+                    {topEntry && (
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 11, color: S.textMuted, fontWeight: 600, marginBottom: 2 }}>最多タイプ</div>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 20, background: (types.find(t=>t.name===topEntry.label)?.color||"#888") + "18", border: `1.5px solid ${types.find(t=>t.name===topEntry.label)?.color||"#888"}` }}>
+                          <span style={{ fontSize: 16 }}>{topEntry.icon}</span>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: types.find(t=>t.name===topEntry.label)?.color||"#888" }}>{topEntry.label}</span>
+                          <span style={{ fontWeight: 900, fontSize: 15, color: types.find(t=>t.name===topEntry.label)?.color||"#888" }}>{topEntry.value}件</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {pieData.length > 0 ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 32, flexWrap: "wrap" }}>
+                      <PieChart data={pieData} size={180} />
+                      <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 10 }}>
+                        {pieData.map((d) => (
+                          <div key={d.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ width: 12, height: 12, borderRadius: 3, background: d.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 12, fontWeight: 600, color: S.text, flex: 1 }}>{d.icon} {d.label}</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 100 }}>
+                              <div style={{ flex: 1, height: 6, borderRadius: 3, background: S.bg, overflow: "hidden", minWidth: 60 }}>
+                                <div style={{ height: "100%", borderRadius: 3, background: d.color, width: `${(d.value / targetResponses.length) * 100}%`, transition: "width 0.8s ease" }} />
+                              </div>
+                              <span style={{ fontSize: 13, fontWeight: 900, color: d.color, minWidth: 32, textAlign: "right" }}>{d.value}</span>
+                              <span style={{ fontSize: 11, color: S.textMuted, minWidth: 36 }}>({Math.round((d.value / targetResponses.length) * 100)}%)</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "24px 0", color: S.textMuted, fontSize: 13 }}>回答データがありません</div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* 集計サマリー */}
             <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
