@@ -1688,6 +1688,47 @@ export default function PersonalityDiagnosisApp() {
             <button onClick={() => { const newId = editingQuestion.id + "_" + uid(); setEditingQuestion((p) => ({ ...p, choices: [...p.choices, { id: newId, label: "", typeId: types[0]?.id || "", score: 1 }] })); }}
               style={{ fontSize: 12, color: S.accent, background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: S.font, marginTop: 4 }}>+ 選択肢を追加</button>
           )}
+
+          {/* インライン新規タイプ作成 */}
+          <div style={{ marginTop: 20, padding: "14px 16px", borderRadius: S.radiusSm, background: S.bg, border: `1px dashed ${S.border}` }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: S.textMuted, marginBottom: 10 }}>✨ 新しいタイプを追加</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                id="inline-type-name"
+                placeholder="タイプ名（例：リーダー型）"
+                style={{ flex: 1, minWidth: 140, padding: "7px 10px", borderRadius: 8, border: `1.5px solid ${S.border}`, fontSize: 13, fontFamily: S.font, color: S.text, background: "#FAFAF8" }}
+              />
+              <input
+                id="inline-type-icon"
+                placeholder="🔷"
+                style={{ width: 52, padding: "7px 8px", borderRadius: 8, border: `1.5px solid ${S.border}`, fontSize: 13, fontFamily: S.font, textAlign: "center", background: "#FAFAF8" }}
+              />
+              <input
+                id="inline-type-color"
+                type="color"
+                defaultValue="#888888"
+                style={{ width: 42, height: 36, borderRadius: 8, border: `1.5px solid ${S.border}`, cursor: "pointer", padding: 2, background: "#FAFAF8" }}
+              />
+              <button
+                onClick={() => {
+                  const nameEl = document.getElementById("inline-type-name");
+                  const iconEl = document.getElementById("inline-type-icon");
+                  const colorEl = document.getElementById("inline-type-color");
+                  const name = nameEl?.value?.trim();
+                  if (!name) return;
+                  const icon = iconEl?.value?.trim() || "🔷";
+                  const color = colorEl?.value || "#888888";
+                  const newType = { id: "type_" + uid(), name, icon, color, userDescription: "", adminDescription: "" };
+                  setTypes((prev) => [...prev, newType]);
+                  showToast(`タイプ「${name}」を追加しました`);
+                  if (nameEl) nameEl.value = "";
+                  if (iconEl) iconEl.value = "";
+                }}
+                style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: S.accent, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: S.font, flexShrink: 0 }}
+              >追加</button>
+            </div>
+            <div style={{ fontSize: 11, color: S.textMuted, marginTop: 6 }}>追加後、上の各選択肢のタイプ欄で選択できます</div>
+          </div>
         </Modal>
       )}
 
