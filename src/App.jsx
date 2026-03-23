@@ -571,6 +571,15 @@ export default function PersonalityDiagnosisApp() {
   const [adminLoginInput, setAdminLoginInput] = useState("");
   const [adminLoginError, setAdminLoginError] = useState(false);
 
+  // --- サブ管理者（作成者）認証 ---
+  const [creatorPassword, setCreatorPassword] = useState("creator2024");
+  const [isCreatorLoggedIn, setIsCreatorLoggedIn] = useState(false);
+  const [loggedInCreatorName, setLoggedInCreatorName] = useState("");
+  const [creatorLoginNameInput, setCreatorLoginNameInput] = useState("");
+  const [creatorLoginPassInput, setCreatorLoginPassInput] = useState("");
+  const [creatorLoginError, setCreatorLoginError] = useState(false);
+  const [loginTab, setLoginTab] = useState("admin"); // "admin" | "creator"
+
   // --- 画面制御 ---
   const [mode, setMode] = useState("landing"); // landing | adminLogin | admin | user
 
@@ -608,6 +617,8 @@ export default function PersonalityDiagnosisApp() {
   // --- 設定画面用 ---
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [passwordChangeMsg, setPasswordChangeMsg] = useState("");
+  const [newCreatorPasswordInput, setNewCreatorPasswordInput] = useState("");
+  const [creatorPasswordChangeMsg, setCreatorPasswordChangeMsg] = useState("");
 
   // Firestoreから回答データを取得
   const fetchResponses = useCallback(async () => {
@@ -703,7 +714,7 @@ export default function PersonalityDiagnosisApp() {
   useEffect(() => {
     const path = location.pathname.replace(/^\//, "").replace(/\/$/, "");
     if (path === "admin") {
-      if (isAdminLoggedIn) {
+      if (isAdminLoggedIn || isCreatorLoggedIn) {
         setMode("admin");
       } else {
         setMode("adminLogin");
@@ -825,7 +836,9 @@ export default function PersonalityDiagnosisApp() {
   const handleAdminLogin = () => {
     if (adminLoginInput === adminPassword) {
       setIsAdminLoggedIn(true);
+      setIsCreatorLoggedIn(false);
       setMode("admin");
+      setAdminTab("responses");
       setAdminLoginError(false);
       setAdminLoginInput("");
     } else {
@@ -833,10 +846,32 @@ export default function PersonalityDiagnosisApp() {
     }
   };
 
+  const handleCreatorLogin = (e) => {
+    e?.preventDefault();
+    if (!creatorLoginNameInput.trim()) {
+      setCreatorLoginError(true);
+      return;
+    }
+    if (creatorLoginPassInput === creatorPassword) {
+      setIsCreatorLoggedIn(true);
+      setIsAdminLoggedIn(false);
+      setLoggedInCreatorName(creatorLoginNameInput.trim());
+      setMode("admin");
+      setAdminTab("forms");
+      setCreatorLoginError(false);
+      setCreatorLoginPassInput("");
+      setCreatorLoginNameInput("");
+    } else {
+      setCreatorLoginError(true);
+    }
+  };
+
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
+    setIsCreatorLoggedIn(false);
+    setLoggedInCreatorName("");
     setMode("landing");
-    setAdminTab("responses");
+    setAdminTab("forms");
     navigate("/");
   };
 
@@ -889,7 +924,7 @@ export default function PersonalityDiagnosisApp() {
   // フォームCRUD
   const addForm = () => {
     const newId = "form_" + uid();
-    setEditingForm({ id: newId, slug: newId, name: "", description: "", questionIds: [], typeIds: types.map((t) => t.id), showResultToRespondent: true, showScoreDetails: true, createdAt: Date.now(), isNew: true });
+    setEditingForm({ id: newId, slug: newId, name: "", description: "", questionIds: [], typeIds: types.map((t) => t.id), showResultToRespondent: true, showScoreDetails: true, createdAt: Date.now(), isNew: true, creatorName: isCreatorLoggedIn ? loggedInCreatorName : "" });
   };
   const saveForm = async () => {
     if (!editingForm || !editingForm.name.trim()) return;
@@ -1019,32 +1054,57 @@ export default function PersonalityDiagnosisApp() {
       <div style={{ fontFamily: S.font, background: `linear-gradient(160deg, #F5F0EB 0%, #EDE6DD 100%)`, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
         <style>{GLOBAL_CSS}</style>
         <div style={{ background: S.card, borderRadius: "24px", padding: "40px 36px", boxShadow: S.shadowLg, maxWidth: 400, width: "100%", animation: "scaleIn 0.4s ease-out", border: `1px solid ${S.border}` }}>
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <div style={{ width: 56, height: 56, borderRadius: "50%", background: S.accentLight, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-              <Icon name="lock" size={24} />
-            </div>
-            <h2 style={{ fontSize: 22, fontWeight: 900, color: S.text, marginBottom: 4 }}>管理者ログイン</h2>
-            <p style={{ fontSize: 13, color: S.textMuted }}>パスワードを入力してください</p>
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>⚙️</div>
+            <h2 style={{ fontSize: 22, fontWeight: 900, color: S.text, letterSpacing: "-0.01em" }}>ログイン</h2>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <input
-              type="password" value={adminLoginInput} placeholder="パスワード"
-              onChange={(e) => { setAdminLoginInput(e.target.value); setAdminLoginError(false); }}
-              onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
-              style={{ width: "100%", padding: "14px 16px", borderRadius: S.radiusSm, border: `1.5px solid ${adminLoginError ? S.danger : S.border}`, fontSize: 15, fontFamily: S.font, color: S.text, background: "#FAFAF8", transition: "all 0.2s" }}
-            />
-            {adminLoginError && (
-              <div style={{ color: S.danger, fontSize: 13, marginTop: 8, fontWeight: 600, animation: "shake 0.4s ease" }}>
-                パスワードが正しくありません
+          {/* タブ切り替え */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 24, padding: 4, background: S.bg, borderRadius: S.radiusSm }}>
+            <button onClick={() => { setLoginTab("admin"); setAdminLoginError(false); }} style={{ flex: 1, padding: "8px", borderRadius: 6, border: "none", background: loginTab === "admin" ? S.card : "transparent", boxShadow: loginTab === "admin" ? S.shadowSm : "none", fontSize: 13, fontWeight: 700, color: loginTab === "admin" ? S.accent : S.textMuted, cursor: "pointer", transition: "all 0.2s" }}>システム管理者</button>
+            <button onClick={() => { setLoginTab("creator"); setCreatorLoginError(false); }} style={{ flex: 1, padding: "8px", borderRadius: 6, border: "none", background: loginTab === "creator" ? S.card : "transparent", boxShadow: loginTab === "creator" ? S.shadowSm : "none", fontSize: 13, fontWeight: 700, color: loginTab === "creator" ? S.accent : S.textMuted, cursor: "pointer", transition: "all 0.2s" }}>フォーム作成者</button>
+          </div>
+
+          {loginTab === "admin" ? (
+            <div>
+              <div style={{ marginBottom: 16 }}>
+                <input
+                  type="password" value={adminLoginInput} placeholder="システム管理者パスワード"
+                  onChange={(e) => { setAdminLoginInput(e.target.value); setAdminLoginError(false); }}
+                  onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
+                  style={{ width: "100%", padding: "14px 16px", borderRadius: S.radiusSm, border: `1.5px solid ${adminLoginError ? S.danger : S.border}`, fontSize: 15, fontFamily: S.font, color: S.text, background: "#FAFAF8", transition: "all 0.2s" }}
+                />
               </div>
-            )}
-          </div>
+              {adminLoginError && <div style={{ color: S.danger, fontSize: 13, marginBottom: 16, fontWeight: 600, textAlign: "center" }}>パスワードが正しくありません</div>}
+              <button onClick={handleAdminLogin}
+                style={{ width: "100%", padding: "14px", borderRadius: S.radiusSm, border: "none", background: S.accent, cursor: "pointer", fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: S.font, marginBottom: 12 }}>
+                ログイン
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleCreatorLogin}>
+              <div style={{ marginBottom: 16 }}>
+                <input
+                  type="text" value={creatorLoginNameInput} placeholder="あなたの名前（作成者名）"
+                  onChange={(e) => { setCreatorLoginNameInput(e.target.value); setCreatorLoginError(false); }}
+                  style={{ width: "100%", padding: "14px 16px", borderRadius: S.radiusSm, border: `1.5px solid ${creatorLoginError && !creatorLoginNameInput ? S.danger : S.border}`, fontSize: 15, fontFamily: S.font, color: S.text, background: "#FAFAF8", transition: "all 0.2s" }}
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <input
+                  type="password" value={creatorLoginPassInput} placeholder="作成者用共通パスワード"
+                  onChange={(e) => { setCreatorLoginPassInput(e.target.value); setCreatorLoginError(false); }}
+                  style={{ width: "100%", padding: "14px 16px", borderRadius: S.radiusSm, border: `1.5px solid ${creatorLoginError && creatorLoginNameInput ? S.danger : S.border}`, fontSize: 15, fontFamily: S.font, color: S.text, background: "#FAFAF8", transition: "all 0.2s" }}
+                />
+              </div>
+              {creatorLoginError && <div style={{ color: S.danger, fontSize: 13, marginBottom: 16, fontWeight: 600, textAlign: "center" }}>名前とパスワードを確認してください</div>}
+              <button type="submit"
+                style={{ width: "100%", padding: "14px", borderRadius: S.radiusSm, border: "none", background: S.accent, cursor: "pointer", fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: S.font, marginBottom: 12 }}>
+                ログイン
+              </button>
+            </form>
+          )}
 
-          <button onClick={handleAdminLogin}
-            style={{ width: "100%", padding: "14px", borderRadius: S.radiusSm, border: "none", background: S.accent, cursor: "pointer", fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: S.font, marginBottom: 12 }}>
-            ログイン
-          </button>
           <button onClick={() => { setMode("landing"); navigate("/"); }}
             style={{ width: "100%", padding: "12px", borderRadius: S.radiusSm, border: `1.5px solid ${S.border}`, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 500, color: S.textMuted, fontFamily: S.font }}>
             戻る
@@ -1216,16 +1276,26 @@ export default function PersonalityDiagnosisApp() {
   // ============================================================
   const adminSelectedForm = forms.find((f) => f.id === adminSelectedFormId);
 
-  const adminTabs = [
+  const adminTabsAll = [
     { key: "responses", label: "回答一覧", icon: "📊" },
     { key: "questions", label: "質問管理", icon: "📝" },
     { key: "types", label: "タイプ管理", icon: "🏷️" },
     { key: "forms", label: "フォーム管理", icon: "📋" },
     { key: "settings", label: "設定", icon: "⚙️" },
   ];
+  const adminTabs = isCreatorLoggedIn ? adminTabsAll.filter((t) => ["questions", "types", "forms"].includes(t.key)) : adminTabsAll;
+
+  const visibleForms = isCreatorLoggedIn ? forms.filter((f) => f.creatorName === loggedInCreatorName) : forms;
+
+  // デフォルトタブの補正
+  useEffect(() => {
+    if (isCreatorLoggedIn && (adminTab === "responses" || adminTab === "settings")) {
+      setAdminTab("forms");
+    }
+  }, [isCreatorLoggedIn, adminTab]);
 
   // 管理者質問一覧のフォーム別フィルター用
-  const getFormForQuestion = (qId) => forms.filter((f) => f.questionIds.includes(qId));
+  const getFormForQuestion = (qId) => visibleForms.filter((f) => f.questionIds.includes(qId));
 
   // --- CSVダウンロード処理 ---
   const handleDownloadCSV = () => {
@@ -1294,7 +1364,9 @@ export default function PersonalityDiagnosisApp() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ fontSize: 20 }}>⚙️</span>
-              <span style={{ fontWeight: 900, fontSize: 16, color: S.text }}>管理者ダッシュボード</span>
+              <span style={{ fontWeight: 900, fontSize: 16, color: S.text }}>
+                {isCreatorLoggedIn ? `フォーム作成者: ${loggedInCreatorName}` : "管理者ダッシュボード"}
+              </span>
             </div>
             <button onClick={handleAdminLogout}
               style={{ background: "none", border: `1.5px solid ${S.border}`, borderRadius: S.radiusSm, padding: "6px 16px", cursor: "pointer", fontSize: 13, color: S.textMuted, fontFamily: S.font, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
@@ -1302,14 +1374,17 @@ export default function PersonalityDiagnosisApp() {
             </button>
           </div>
           {/* フォーム選択バー */}
-          <div style={{ display: "flex", gap: 8, padding: "8px 0", overflowX: "auto", borderBottom: `1px solid ${S.border}` }}>
-            {forms.map((f) => (
-              <button key={f.id} onClick={() => setAdminSelectedFormId(f.id)}
-                style={{ padding: "6px 16px", borderRadius: 20, border: `1.5px solid ${adminSelectedFormId === f.id ? S.accent : S.border}`, background: adminSelectedFormId === f.id ? S.accentLight : "transparent", cursor: "pointer", fontSize: 12, fontWeight: 600, color: adminSelectedFormId === f.id ? S.accent : S.textMuted, fontFamily: S.font, transition: "all 0.2s", whiteSpace: "nowrap" }}>
-                {f.name}
-              </button>
-            ))}
-          </div>
+          {adminTab === "responses" || adminTab === "questions" ? (
+            <div style={{ display: "flex", gap: 8, padding: "8px 0", overflowX: "auto", borderBottom: `1px solid ${S.border}` }}>
+              {visibleForms.map((f) => (
+                <button key={f.id} onClick={() => setAdminSelectedFormId(f.id)}
+                  style={{ padding: "6px 16px", borderRadius: 20, border: `1.5px solid ${adminSelectedFormId === f.id ? S.accent : S.border}`, background: adminSelectedFormId === f.id ? S.accentLight : "transparent", cursor: "pointer", fontSize: 12, fontWeight: 600, color: adminSelectedFormId === f.id ? S.accent : S.textMuted, fontFamily: S.font, transition: "all 0.2s", whiteSpace: "nowrap" }}>
+                  {f.name}
+                </button>
+              ))}
+              {visibleForms.length === 0 && <span style={{ fontSize: 12, color: S.textMuted, padding: "6px" }}>対象のフォームがありません</span>}
+            </div>
+          ) : null}
           <div style={{ display: "flex", gap: 0, overflowX: "auto" }}>
             {adminTabs.map((tab) => (
               <button key={tab.key} className="admin-tab" onClick={() => setAdminTab(tab.key)}
@@ -1594,7 +1669,9 @@ export default function PersonalityDiagnosisApp() {
               </button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {forms.map((f, i) => {
+              {visibleForms.length === 0 ? (
+                <div style={{ padding: "40px", textAlign: "center", color: S.textMuted }}>表示できるフォームがありません</div>
+              ) : visibleForms.map((f, i) => {
                 const fTypes = f.typeIds.map((tid) => types.find((t) => t.id === tid)).filter(Boolean);
                 const resCount = responses.filter((r) => r.formId === f.id).length;
                 return (
@@ -1616,6 +1693,9 @@ export default function PersonalityDiagnosisApp() {
                       {fTypes.map((t) => (
                         <span key={t.id} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: t.color + "14", color: t.color, fontWeight: 500 }}>{t.icon} {t.name}</span>
                       ))}
+                      {f.creatorName && (
+                        <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#FFF3E0", color: "#E65100", fontWeight: 700 }}> 作成者: {f.creatorName}</span>
+                      )}
                     </div>
 
                     {/* 結果表示トグル */}
@@ -1716,6 +1796,36 @@ export default function PersonalityDiagnosisApp() {
                 </button>
                 {passwordChangeMsg && (
                   <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: passwordChangeMsg.includes("変更しました") ? "#43A047" : S.danger }}>{passwordChangeMsg}</div>
+                )}
+              </div>
+            </div>
+
+            {/* 作成者用パスワード */}
+            <div style={{ background: S.card, borderRadius: S.radius, padding: "24px", boxShadow: S.shadow, border: `1px solid ${S.border}` }}>
+              <h3 style={{ fontSize: 16, fontWeight: 900, color: S.text, marginBottom: 12 }}>フォーム作成者用共通パスワードの変更</h3>
+              <p style={{ fontSize: 13, color: S.textMuted, marginBottom: 16 }}>作成者がログインして自分のフォームを作成・編集するときに使う共通パスワードです。</p>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
+                <input
+                  type="password" value={newCreatorPasswordInput} onChange={(e) => setNewCreatorPasswordInput(e.target.value)}
+                  placeholder="新しい作成者パスワード"
+                  style={{ flex: 1, minWidth: 200, padding: "10px 14px", borderRadius: S.radiusSm, border: `1.5px solid ${S.border}`, fontSize: 14, fontFamily: S.font, color: S.text, background: "#FAFAF8" }}
+                />
+                <button onClick={() => {
+                  if (newCreatorPasswordInput.length >= 4) {
+                    setCreatorPassword(newCreatorPasswordInput.trim());
+                    setNewCreatorPasswordInput("");
+                    setCreatorPasswordChangeMsg("作成者パスワードを変更しました");
+                    setTimeout(() => setCreatorPasswordChangeMsg(""), 3000);
+                  } else {
+                    setCreatorPasswordChangeMsg("4文字以上で入力してください");
+                    setTimeout(() => setCreatorPasswordChangeMsg(""), 3000);
+                  }
+                }}
+                  style={{ padding: "10px 24px", borderRadius: S.radiusSm, border: "none", background: S.accent, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: S.font }}>
+                  パスワードを変更
+                </button>
+                {creatorPasswordChangeMsg && (
+                  <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: creatorPasswordChangeMsg.includes("変更しました") ? "#43A047" : S.danger, width: "100%" }}>{creatorPasswordChangeMsg}</div>
                 )}
               </div>
             </div>
