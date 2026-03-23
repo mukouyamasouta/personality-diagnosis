@@ -1227,6 +1227,63 @@ export default function PersonalityDiagnosisApp() {
   // 管理者質問一覧のフォーム別フィルター用
   const getFormForQuestion = (qId) => forms.filter((f) => f.questionIds.includes(qId));
 
+  // --- CSVダウンロード処理 ---
+  const handleDownloadCSV = () => {
+    if (!adminSelectedForm) return showToast("フォームを選択してください");
+    const targetResponses = filteredResponses.filter((r) => r.formId === adminSelectedFormId);
+    if (targetResponses.length === 0) return showToast("ダウンロードするデータがありません");
+
+    // 全ての質問列のヘッダーを作成
+    const headerRow = ["回答日時", "所属", "氏名", "結果タイプ", "タイプ数"];
+    const formQs = adminSelectedForm.questionIds.map(qid => questions.find(q => q.id === qid)).filter(Boolean);
+    formQs.forEach((q, i) => {
+      headerRow.push(`Q${i + 1} 質問`);
+      headerRow.push(`Q${i + 1} 回答`);
+      headerRow.push(`Q${i + 1} タイプ`);
+    });
+
+    const rows = [headerRow.map((v) => `"${v}"`).join(",")];
+
+    targetResponses.forEach((r) => {
+      const typeCount = targetResponses.filter((fr) => fr.resultTypeId === r.resultTypeId).length;
+      const dateStr = new Date(r.submittedAt).toLocaleString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+      const baseRow = [
+        dateStr,
+        r.respondentInfo.department || "",
+        r.respondentInfo.name,
+        r.resultTypeLabel,
+        typeCount
+      ];
+
+      // 回答内容を順に取得
+      const qData = [];
+      formQs.forEach((q) => {
+        const ans = r.answerLabels[q.id];
+        if (ans) {
+          qData.push(ans.questionText || "");
+          qData.push(ans.choiceLabel || "");
+          qData.push(ans.typeLabel || "");
+        } else {
+          qData.push("", "", "");
+        }
+      });
+
+      const row = [...baseRow, ...qData].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+      rows.push(row);
+    });
+
+    const csvContent = "\uFEFF" + rows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${adminSelectedForm.name}_回答データ_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("CSVをダウンロードしました");
+  };
+
   return (
     <div style={{ fontFamily: S.font, background: S.bg, minHeight: "100vh" }}>
       <style>{GLOBAL_CSS}</style>
@@ -1269,8 +1326,16 @@ export default function PersonalityDiagnosisApp() {
         {/* ====== 回答一覧タブ ====== */}
         {adminTab === "responses" && (
           <div>
-            <h2 style={{ fontSize: 20, fontWeight: 900, color: S.text, marginBottom: 8 }}>回答一覧</h2>
-            <p style={{ fontSize: 13, color: S.textMuted, marginBottom: 20 }}>選択中: <strong style={{ color: S.accent }}>{adminSelectedForm?.name || "全フォーム"}</strong></p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+              <div>
+                <h2 style={{ fontSize: 20, fontWeight: 900, color: S.text, marginBottom: 4 }}>回答一覧</h2>
+                <p style={{ fontSize: 13, color: S.textMuted }}>選択中: <strong style={{ color: S.accent }}>{adminSelectedForm?.name || "全フォーム"}</strong></p>
+              </div>
+              <button onClick={handleDownloadCSV}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: S.radiusSm, border: `1px solid ${S.border}`, background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700, color: S.text, fontFamily: S.font, boxShadow: S.shadow, alignSelf: "center" }}>
+                <Icon name="download" size={15} /> CSVダウンロード
+              </button>
+            </div>
 
             {/* フィルター行 */}
             <div style={{ background: S.card, borderRadius: S.radius, padding: "16px 20px", boxShadow: S.shadow, border: `1px solid ${S.border}`, marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
