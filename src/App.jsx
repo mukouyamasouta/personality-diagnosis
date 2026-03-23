@@ -900,6 +900,22 @@ export default function PersonalityDiagnosisApp() {
   };
 
   // ============================================================
+  // フォーム読み込み中（URL直リンク時のフラッシュ防止）
+  // ============================================================
+  const currentUrlPath = location.pathname.replace(/^\//, "").replace(/\/$/, "");
+  if (!formsLoaded && currentUrlPath && currentUrlPath !== "admin") {
+    return (
+      <div style={{ fontFamily: S.font, background: `linear-gradient(160deg, #F5F0EB 0%, #EDE6DD 100%)`, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <style>{GLOBAL_CSS}</style>
+        <div style={{ textAlign: "center", animation: "fadeUp 0.6s ease-out" }}>
+          <div style={{ fontSize: 48, marginBottom: 16, animation: "float 2s ease-in-out infinite" }}>🪞</div>
+          <div style={{ fontSize: 14, color: S.textMuted, fontWeight: 500 }}>読み込み中...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
   // ランディング画面
   // ============================================================
   if (mode === "landing") {
