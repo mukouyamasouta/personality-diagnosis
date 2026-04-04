@@ -991,7 +991,7 @@ export default function PersonalityDiagnosisApp() {
   };
 
   // 複製
-  const duplicateQuestion = (q) => {
+  const duplicateQuestion = async (q) => {
     const newId = "q_" + uid();
     const newQ = {
       ...q,
@@ -1000,24 +1000,38 @@ export default function PersonalityDiagnosisApp() {
       choices: q.choices.map((c, i) => ({ ...c, id: newId + "_" + ["a","b","c","d","e","f"][i] })),
     };
     setQuestions((prev) => [...prev, newQ]);
-    // 現在選択中のフォームに自動追加
+    // 現在選択中のフォームに自動追加 + Firestore保存
     if (adminSelectedFormId) {
-      setForms((prev) => prev.map((f) =>
-        f.id === adminSelectedFormId ? { ...f, questionIds: [...f.questionIds, newId] } : f
-      ));
+      setForms((prev) => prev.map((f) => {
+        if (f.id !== adminSelectedFormId) return f;
+        const updated = { ...f, questionIds: [...f.questionIds, newId] };
+        const { _docId, ...toSave } = updated;
+        setDoc(doc(db, "forms", f.id), toSave).catch(console.error);
+        return updated;
+      }));
+      const formName = forms.find(f => f.id === adminSelectedFormId)?.name || "";
+      showToast(`質問を複製し、${formName}に追加しました`);
+    } else {
+      showToast("質問を複製しました");
     }
-    showToast("質問を複製しました");
   };
-  const duplicateType = (t) => {
+  const duplicateType = async (t) => {
     const newT = { ...t, id: "type_" + uid(), name: t.name + "（コピー）" };
     setTypes((prev) => [...prev, newT]);
-    // 現在選択中のフォームに自動追加
+    // 現在選択中のフォームに自動追加 + Firestore保存
     if (adminSelectedFormId) {
-      setForms((prev) => prev.map((f) =>
-        f.id === adminSelectedFormId ? { ...f, typeIds: [...f.typeIds, newT.id] } : f
-      ));
+      setForms((prev) => prev.map((f) => {
+        if (f.id !== adminSelectedFormId) return f;
+        const updated = { ...f, typeIds: [...f.typeIds, newT.id] };
+        const { _docId, ...toSave } = updated;
+        setDoc(doc(db, "forms", f.id), toSave).catch(console.error);
+        return updated;
+      }));
+      const formName = forms.find(f => f.id === adminSelectedFormId)?.name || "";
+      showToast(`タイプを複製し、${formName}に追加しました`);
+    } else {
+      showToast("タイプを複製しました");
     }
-    showToast("タイプを複製しました");
   };
   const duplicateForm = async (f) => {
     const newId = "form_" + uid();
@@ -1449,7 +1463,7 @@ export default function PersonalityDiagnosisApp() {
             </button>
           </div>
           {/* フォーム選択バー */}
-          {adminTab === "responses" || adminTab === "questions" ? (
+          {(adminTab === "responses" || adminTab === "questions" || adminTab === "types") ? (
             <div style={{ display: "flex", gap: 8, padding: "8px 0", overflowX: "auto", borderBottom: `1px solid ${S.border}` }}>
               {visibleForms.map((f) => (
                 <button key={f.id} onClick={() => setAdminSelectedFormId(f.id)}
