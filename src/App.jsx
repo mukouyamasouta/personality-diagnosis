@@ -990,6 +990,37 @@ export default function PersonalityDiagnosisApp() {
     showToast("フォームを削除しました");
   };
 
+  // 複製
+  const duplicateQuestion = (q) => {
+    const newId = "q_" + uid();
+    const newQ = {
+      ...q,
+      id: newId,
+      text: q.text + "（コピー）",
+      choices: q.choices.map((c, i) => ({ ...c, id: newId + "_" + ["a","b","c","d","e","f"][i] })),
+    };
+    setQuestions((prev) => [...prev, newQ]);
+    showToast("質問を複製しました");
+  };
+  const duplicateType = (t) => {
+    const newT = { ...t, id: "type_" + uid(), name: t.name + "（コピー）" };
+    setTypes((prev) => [...prev, newT]);
+    showToast("タイプを複製しました");
+  };
+  const duplicateForm = async (f) => {
+    const newId = "form_" + uid();
+    const newSlug = (f.slug || f.id) + "_copy";
+    const { _docId, ...rest } = f;
+    const newF = { ...rest, id: newId, slug: newSlug, name: f.name + "（コピー）", createdAt: Date.now() };
+    try {
+      await setDoc(doc(db, "forms", newId), newF);
+    } catch (e) {
+      console.error("フォーム複製エラー:", e);
+    }
+    setForms((prev) => [...prev, newF]);
+    showToast("フォームを複製しました");
+  };
+
   // 結果表示トグル
   const toggleShowResult = (formId) => {
     setForms((prev) => prev.map((f) => f.id === formId ? { ...f, showResultToRespondent: !f.showResultToRespondent } : f));
@@ -1640,6 +1671,7 @@ export default function PersonalityDiagnosisApp() {
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 4, marginLeft: 8, flexShrink: 0 }}>
+                          <button onClick={() => duplicateQuestion(q)} style={{ background: S.bg, border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: S.textMuted }} title="複製"><Icon name="copy" size={14} /></button>
                           <button onClick={() => setEditingQuestion({ ...q })} style={{ background: S.bg, border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: S.textMuted }}><Icon name="edit" size={14} /></button>
                           <button onClick={() => deleteQuestion(q.id)} style={{ background: S.dangerLight, border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: S.danger }}><Icon name="trash" size={14} /></button>
                         </div>
@@ -1674,6 +1706,7 @@ export default function PersonalityDiagnosisApp() {
                       <span style={{ fontWeight: 900, fontSize: 15, color: S.text }}>{t.name}</span>
                     </div>
                     <div style={{ display: "flex", gap: 4 }}>
+                      <button onClick={() => duplicateType(t)} style={{ background: S.bg, border: "none", borderRadius: 6, padding: 5, cursor: "pointer", color: S.textMuted }} title="複製"><Icon name="copy" size={13} /></button>
                       <button onClick={() => setEditingType({ ...t })} style={{ background: S.bg, border: "none", borderRadius: 6, padding: 5, cursor: "pointer", color: S.textMuted }}><Icon name="edit" size={13} /></button>
                       <button onClick={() => deleteType(t.id)} style={{ background: S.dangerLight, border: "none", borderRadius: 6, padding: 5, cursor: "pointer", color: S.danger }}><Icon name="trash" size={13} /></button>
                     </div>
@@ -1714,6 +1747,7 @@ export default function PersonalityDiagnosisApp() {
                         <div style={{ fontSize: 13, color: S.textMuted }}>{f.description}</div>
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => duplicateForm(f)} style={{ background: S.bg, border: "none", borderRadius: 8, padding: 8, cursor: "pointer", color: S.textMuted }} title="複製"><Icon name="copy" size={15} /></button>
                         <button onClick={() => setEditingForm({ ...f })} style={{ background: S.bg, border: "none", borderRadius: 8, padding: 8, cursor: "pointer", color: S.textMuted }}><Icon name="edit" size={15} /></button>
                         <button onClick={() => deleteForm(f.id)} style={{ background: S.dangerLight, border: "none", borderRadius: 8, padding: 8, cursor: "pointer", color: S.danger }}><Icon name="trash" size={15} /></button>
                       </div>
