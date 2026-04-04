@@ -2010,39 +2010,47 @@ export default function PersonalityDiagnosisApp() {
               <Toggle on={editingForm.showScoreDetails ?? true} onToggle={() => setEditingForm((p) => ({ ...p, showScoreDetails: !(p.showScoreDetails ?? true) }))} label={(editingForm.showScoreDetails ?? true) ? "内訳を表示する" : "内訳を表示しない"} />
             </div>
           )}
-          <div style={{ marginBottom: 14 }}>
-            <Label>使用するタイプ</Label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {types.map((t) => {
-                const inc = editingForm.typeIds.includes(t.id);
-                return (
-                  <button key={t.id} onClick={() => setEditingForm((p) => ({ ...p, typeIds: inc ? p.typeIds.filter((id) => id !== t.id) : [...p.typeIds, t.id] }))}
-                    style={{ padding: "5px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, fontFamily: S.font, cursor: "pointer", border: `1.5px solid ${inc ? t.color : S.border}`, background: inc ? t.color + "18" : S.bg, color: inc ? t.color : S.textMuted, transition: "all 0.2s" }}>
-                    {t.icon} {t.name}
-                  </button>
-                );
-              })}
+          {editingForm.isNew ? (
+            <div style={{ padding: "16px", borderRadius: S.radiusSm, background: S.bg, border: `1px dashed ${S.border}`, fontSize: 13, color: S.textMuted, lineHeight: 1.7, textAlign: "center" }}>
+              💡 フォームを保存後、一覧の「編集」ボタンからタイプと質問を追加できます
             </div>
-          </div>
-          <div>
-            <Label>使用する質問（選択順で出題）</Label>
-            <div style={{ maxHeight: 300, overflow: "auto", border: `1px solid ${S.border}`, borderRadius: S.radiusSm }}>
-              {questions.map((q) => {
-                const idx = editingForm.questionIds.indexOf(q.id);
-                const inc = idx !== -1;
-                return (
-                  <div key={q.id} onClick={() => setEditingForm((p) => ({ ...p, questionIds: inc ? p.questionIds.filter((id) => id !== q.id) : [...p.questionIds, q.id] }))}
-                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", cursor: "pointer", borderBottom: `1px solid ${S.border}`, background: inc ? S.accentLight : "transparent", transition: "all 0.15s" }}>
-                    <div style={{ width: 20, height: 20, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid ${inc ? S.accent : S.border}`, background: inc ? S.accent : "transparent", color: "#fff", transition: "all 0.2s" }}>
-                      {inc && <Icon name="check" size={12} />}
-                    </div>
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: S.text }}>{q.text}</span>
-                    {inc && <span style={{ fontSize: 11, fontWeight: 700, color: S.accent, background: S.card, padding: "1px 7px", borderRadius: 4 }}>#{idx + 1}</span>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          ) : (
+            <>
+              <div style={{ marginBottom: 14 }}>
+                <Label>使用するタイプ</Label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {types.map((t) => {
+                    const inc = editingForm.typeIds.includes(t.id);
+                    return (
+                      <button key={t.id} onClick={() => setEditingForm((p) => ({ ...p, typeIds: inc ? p.typeIds.filter((id) => id !== t.id) : [...p.typeIds, t.id] }))}
+                        style={{ padding: "5px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, fontFamily: S.font, cursor: "pointer", border: `1.5px solid ${inc ? t.color : S.border}`, background: inc ? t.color + "18" : S.bg, color: inc ? t.color : S.textMuted, transition: "all 0.2s" }}>
+                        {t.icon} {t.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <Label>使用する質問（選択順で出題）</Label>
+                <div style={{ maxHeight: 300, overflow: "auto", border: `1px solid ${S.border}`, borderRadius: S.radiusSm }}>
+                  {questions.map((q) => {
+                    const idx = editingForm.questionIds.indexOf(q.id);
+                    const inc = idx !== -1;
+                    return (
+                      <div key={q.id} onClick={() => setEditingForm((p) => ({ ...p, questionIds: inc ? p.questionIds.filter((id) => id !== q.id) : [...p.questionIds, q.id] }))}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", cursor: "pointer", borderBottom: `1px solid ${S.border}`, background: inc ? S.accentLight : "transparent", transition: "all 0.15s" }}>
+                        <div style={{ width: 20, height: 20, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid ${inc ? S.accent : S.border}`, background: inc ? S.accent : "transparent", color: "#fff", transition: "all 0.2s" }}>
+                          {inc && <Icon name="check" size={12} />}
+                        </div>
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: S.text }}>{q.text}</span>
+                        {inc && <span style={{ fontSize: 11, fontWeight: 700, color: S.accent, background: S.card, padding: "1px 7px", borderRadius: 4 }}>#{idx + 1}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
         </Modal>
       )}
 
