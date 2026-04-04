@@ -1000,11 +1000,23 @@ export default function PersonalityDiagnosisApp() {
       choices: q.choices.map((c, i) => ({ ...c, id: newId + "_" + ["a","b","c","d","e","f"][i] })),
     };
     setQuestions((prev) => [...prev, newQ]);
+    // 現在選択中のフォームに自動追加
+    if (adminSelectedFormId) {
+      setForms((prev) => prev.map((f) =>
+        f.id === adminSelectedFormId ? { ...f, questionIds: [...f.questionIds, newId] } : f
+      ));
+    }
     showToast("質問を複製しました");
   };
   const duplicateType = (t) => {
     const newT = { ...t, id: "type_" + uid(), name: t.name + "（コピー）" };
     setTypes((prev) => [...prev, newT]);
+    // 現在選択中のフォームに自動追加
+    if (adminSelectedFormId) {
+      setForms((prev) => prev.map((f) =>
+        f.id === adminSelectedFormId ? { ...f, typeIds: [...f.typeIds, newT.id] } : f
+      ));
+    }
     showToast("タイプを複製しました");
   };
   const duplicateForm = async (f) => {
