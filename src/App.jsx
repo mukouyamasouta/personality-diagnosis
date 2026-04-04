@@ -963,7 +963,7 @@ export default function PersonalityDiagnosisApp() {
   // フォームCRUD
   const addForm = () => {
     const newId = "form_" + uid();
-    setEditingForm({ id: newId, slug: newId, name: "", description: "", questionIds: [], typeIds: types.map((t) => t.id), showResultToRespondent: true, showScoreDetails: true, createdAt: Date.now(), isNew: true, creatorName: isCreatorLoggedIn ? loggedInCreatorName : "" });
+    setEditingForm({ id: newId, slug: newId, name: "", description: "", questionIds: [], typeIds: [], showResultToRespondent: true, showScoreDetails: true, createdAt: Date.now(), isNew: true, creatorName: isCreatorLoggedIn ? loggedInCreatorName : "" });
   };
   const saveForm = async () => {
     if (!editingForm || !editingForm.name.trim()) return;
