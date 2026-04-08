@@ -2121,7 +2121,7 @@ export default function PersonalityDiagnosisApp() {
               <select value={c.typeId} onChange={(e) => { const nc = [...editingQuestion.choices]; nc[i] = { ...nc[i], typeId: e.target.value }; setEditingQuestion((p) => ({ ...p, choices: nc })); }}
                 style={{ padding: "8px 8px", borderRadius: 8, border: `1.5px solid ${S.border}`, fontSize: 12, fontFamily: S.font, color: S.text, background: "#FAFAF8", maxWidth: 150 }}>
                 <option value="">タイプ</option>
-                {types.map((t) => (<option key={t.id} value={t.id}>{t.icon} {t.name}</option>))}
+                {types.filter(t => !t.formId || t.formId === adminSelectedFormId || t.id === c.typeId).map((t) => (<option key={t.id} value={t.id}>{t.icon} {t.name}</option>))}
               </select>
               <input type="number" value={c.score} onChange={(e) => { const nc = [...editingQuestion.choices]; nc[i] = { ...nc[i], score: parseInt(e.target.value) || 0 }; setEditingQuestion((p) => ({ ...p, choices: nc })); }}
                 style={{ width: 50, padding: "8px 6px", borderRadius: 8, border: `1.5px solid ${S.border}`, fontSize: 13, fontFamily: S.font, textAlign: "center", background: "#FAFAF8" }} min="0" />
