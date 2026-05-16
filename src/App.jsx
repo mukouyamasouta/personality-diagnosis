@@ -963,14 +963,24 @@ export default function PersonalityDiagnosisApp() {
     return list;
   }, [responses, responseFilter]);
 
-  // --- 回答サマリー ---
+  // --- 回答サマリー（現在選択中のフォームに限定） ---
   const responseSummary = useMemo(() => {
+    // 選択中フォームの回答のみを集計対象にする
+    const scoped = filteredResponses.filter((r) => r.formId === adminSelectedFormId);
+    // このフォームに紐づくタイプのみを許可（他フォーム由来の結果が混ざらないようにする）
+    const form = forms.find((f) => f.id === adminSelectedFormId);
+    const allowedTypeIds = new Set(
+      form && Array.isArray(form.typeIds) && form.typeIds.length > 0
+        ? form.typeIds
+        : types.filter((t) => !t.formId || t.formId === adminSelectedFormId).map((t) => t.id)
+    );
+    const onlyFormResponses = scoped.filter((r) => allowedTypeIds.has(r.resultTypeId));
     const typeCounts = {};
-    filteredResponses.forEach((r) => {
+    onlyFormResponses.forEach((r) => {
       typeCounts[r.resultTypeLabel] = (typeCounts[r.resultTypeLabel] || 0) + 1;
     });
-    return { total: filteredResponses.length, typeCounts };
-  }, [filteredResponses]);
+    return { total: onlyFormResponses.length, typeCounts };
+  }, [filteredResponses, adminSelectedFormId, forms, types]);
 
   // --- 管理者ハンドラ ---
   const handleAdminLogin = () => {
