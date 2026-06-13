@@ -1031,6 +1031,7 @@ export default function PersonalityDiagnosisApp() {
     const newId = "q_" + uid();
     setEditingQuestion({
       id: newId, text: "",
+      intent: "",
       choices: [
         { id: newId + "_a", label: "", typeId: types.filter(t => !t.formId || t.formId === adminSelectedFormId)[0]?.id || "", score: 1 },
         { id: newId + "_b", label: "", typeId: types.filter(t => !t.formId || t.formId === adminSelectedFormId)[1]?.id || "", score: 1 },
@@ -1893,6 +1894,11 @@ export default function PersonalityDiagnosisApp() {
                               );
                             })}
                           </div>
+                          {q.intent && (
+                            <div style={{ marginTop: 8, fontSize: 11.5, color: "#9A7B0A", background: "#FFF8E1", border: "1px solid #F0E0A0", borderRadius: 6, padding: "5px 9px" }}>
+                              <span style={{ fontWeight: 700, marginRight: 4 }}>💡 質問の意図:</span>{q.intent}
+                            </div>
+                          )}
                         </div>
                         <div style={{ display: "flex", gap: 4, marginLeft: 8, flexShrink: 0 }}>
                           <button onClick={() => duplicateQuestion(q)} style={{ background: S.bg, border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: S.textMuted }} title="複製"><Icon name="copy" size={14} /></button>
@@ -2171,6 +2177,18 @@ export default function PersonalityDiagnosisApp() {
           <div style={{ marginBottom: 16 }}>
             <Label>質問文</Label>
             <Input value={editingQuestion.text} onChange={(v) => setEditingQuestion((p) => ({ ...p, text: v }))} placeholder="例：休日、急に予定が空いたら？" />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Label>
+              質問の意図
+              <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: S.textMuted }}>（管理者のみ閲覧・回答者には表示されません）</span>
+            </Label>
+            <TextArea
+              value={editingQuestion.intent || ""}
+              onChange={(v) => setEditingQuestion((p) => ({ ...p, intent: v }))}
+              placeholder="例：休日の行動パターンから外向性・社交性を測定したい。Aは社交型、Bは内省型、Cは行動型、Dは安定型。"
+              rows={3}
+            />
           </div>
           <Label>選択肢とスコア</Label>
           {editingQuestion.choices.map((c, i) => (
@@ -2544,12 +2562,20 @@ export default function PersonalityDiagnosisApp() {
                     <tbody>
                       {labelEntries.map(([qId, info], idx) => {
                         const matchType = types.find((tp) => tp.name === info.typeLabel);
+                        const qIntent = questions.find((q) => q.id === qId)?.intent;
                         return (
                           <tr key={qId} style={{ borderBottom: `1px solid ${S.border}` }}>
-                            <td style={{ padding: "8px 10px", fontWeight: 700, color: S.accent }}>{idx + 1}</td>
-                            <td style={{ padding: "8px 10px", color: S.text }}>{info.questionText}</td>
-                            <td style={{ padding: "8px 10px", fontWeight: 600, color: S.text }}>{info.choiceLabel}</td>
-                            <td style={{ padding: "8px 10px" }}>
+                            <td style={{ padding: "8px 10px", fontWeight: 700, color: S.accent, verticalAlign: "top" }}>{idx + 1}</td>
+                            <td style={{ padding: "8px 10px", color: S.text, verticalAlign: "top" }}>
+                              {info.questionText}
+                              {qIntent && (
+                                <div style={{ marginTop: 5, fontSize: 11, color: "#9A7B0A", background: "#FFF8E1", border: "1px solid #F0E0A0", borderRadius: 4, padding: "3px 7px" }}>
+                                  💡 質問の意図: {qIntent}
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ padding: "8px 10px", fontWeight: 600, color: S.text, verticalAlign: "top" }}>{info.choiceLabel}</td>
+                            <td style={{ padding: "8px 10px", verticalAlign: "top" }}>
                               <span style={{ padding: "2px 8px", borderRadius: 4, background: (matchType?.color || "#888") + "14", color: matchType?.color || "#888", fontWeight: 600, fontSize: 11, whiteSpace: "nowrap" }}>{info.typeLabel}</span>
                             </td>
                           </tr>
@@ -2558,6 +2584,16 @@ export default function PersonalityDiagnosisApp() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* 一般公開用（回答者に表示される）分析結果 */}
+                {t && t.userDescription && (
+                  <div style={{ background: (t.color || "#888") + "0C", borderRadius: S.radiusSm, padding: "16px", border: `1px solid ${(t.color || "#888")}25`, marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: t.color || S.text, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 15 }}>{t.icon}</span> 一般公開用の分析結果（回答者に表示される内容）
+                    </div>
+                    <div style={{ fontSize: 13, lineHeight: 1.8, color: S.text, whiteSpace: "pre-line" }}>{t.userDescription}</div>
+                  </div>
+                )}
 
                 {/* 管理者向けタイプ説明 */}
                 {t && (
